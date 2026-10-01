@@ -1,0 +1,168 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10091a">
+<title>My Tipsy</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#100a16;color:#fff;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif}
+header{height:65px;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;background:#160e20;border-bottom:1px solid #32213e}
+.logo{font-size:23px;font-weight:800;color:#e9c8ff}
+button{cursor:pointer;border:0;color:white;background:#7741a0;border-radius:13px;padding:11px 15px;font-size:14px}
+button:active{opacity:.7}
+nav{display:flex;justify-content:space-around;position:fixed;bottom:0;left:0;right:0;background:#170f21;border-top:1px solid #352441;padding:12px 0;z-index:5}
+nav button{background:none;color:#c9b8d3;font-size:12px;padding:5px}
+nav button.active{color:#e7bfff}
+main{padding:20px 16px 95px;max-width:650px;margin:auto}
+h1{font-size:29px;margin:12px 0 5px}
+.sub{color:#ad9bb7;font-size:14px}
+.search,input,textarea{background:#21172a;color:white;border:1px solid #3b2b48;border-radius:13px;padding:13px;font:inherit;width:100%;outline:none}
+.search{margin:20px 0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.card{background:#21172b;border:1px solid #362540;border-radius:18px;overflow:hidden;cursor:pointer}
+.pic{height:175px;display:flex;align-items:center;justify-content:center;font-size:70px;background:linear-gradient(145deg,#764b91,#30203f)}
+.cardinfo{padding:12px}
+.cardinfo b{font-size:16px}
+.cardinfo p{font-size:12px;color:#bbaac6;margin:6px 0 0}
+.panel{background:#21172b;border:1px solid #362540;border-radius:18px;padding:16px;margin-top:20px}
+.hidden{display:none!important}
+.chathead{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid #34233e}
+.chathead button{background:transparent;font-size:23px;padding:5px}
+.chatavatar{width:43px;height:43px;border-radius:50%;display:grid;place-items:center;background:#69458b;font-size:24px}
+.messages{height:calc(100dvh - 190px);overflow:auto;padding:15px 12px}
+.msg{padding:12px 14px;border-radius:17px;margin:9px 0;max-width:85%;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
+.bot{background:#2a2032;border-bottom-left-radius:4px}
+.me{background:#75459b;margin-left:auto;border-bottom-right-radius:4px}
+.composer{position:fixed;bottom:66px;left:0;right:0;display:flex;gap:8px;padding:10px;background:#160f20;border-top:1px solid #34233e}
+.composer input{flex:1;min-width:0}
+.composer button{border-radius:50%;width:47px}
+.field{margin:12px 0}
+.field label{display:block;margin-bottom:7px;color:#d7c6df;font-size:13px}
+textarea{min-height:85px;resize:vertical}
+.small{font-size:12px;color:#ad9bb7}
+</style>
+</head>
+<body>
+<header><div class="logo">✦ My Tipsy</div><span class="small">Personal space</span></header>
+
+<main id="home">
+<h1>Your stories ✦</h1>
+<div class="sub">Choose a character and start your story.</div>
+<input class="search" id="search" placeholder="⌕  Search characters..." oninput="render()">
+<div class="grid" id="cards"></div>
+<div class="panel">
+<h3>Create your character</h3>
+<p class="sub">Bring your own story to life.</p>
+<button onclick="show('creator')">＋ Create character</button>
+</div>
+</main>
+
+<main id="creator" class="hidden">
+<button onclick="show('home')">← Back</button>
+<h1>New character</h1>
+<div class="field"><label>Name</label><input id="cname" placeholder="Character name"></div>
+<div class="field"><label>Emoji / avatar</label><input id="cavatar" placeholder="🌙" maxlength="5"></div>
+<div class="field"><label>Personality</label><textarea id="cpersonality" placeholder="Describe their personality..."></textarea></div>
+<div class="field"><label>Backstory</label><textarea id="cstory" placeholder="Their history and world..."></textarea></div>
+<div class="field"><label>First message</label><textarea id="cgreeting" placeholder="What do they say first?"></textarea></div>
+<button onclick="saveCharacter()">Save character</button>
+</main>
+
+<section id="chat" class="hidden">
+<div class="chathead">
+<button onclick="show('home')">‹</button>
+<div class="chatavatar" id="chatavatar">🌙</div>
+<div><b id="chatname">Character</b><div class="small">Your story</div></div>
+</div>
+<div class="messages" id="messages"></div>
+<div class="composer">
+<input id="message" placeholder="Message..." onkeydown="if(event.key==='Enter')send()">
+<button onclick="send()">➤</button>
+</div>
+</section>
+
+<nav>
+<button class="active" onclick="show('home')">⌂<br>Home</button>
+<button onclick="show('home')">♡<br>Favorites</button>
+<button onclick="show('creator')">＋<br>Create</button>
+<button onclick="alert('Settings will be added later.')">⚙<br>Settings</button>
+</nav>
+
+<script>
+const defaults=[
+{id:'luna',name:'Luna',avatar:'🌙',personality:'Mysterious and warm',story:'',greeting:'The night is quiet. She smiles at you. "I was waiting for you."' },
+{id:'kai',name:'Kai',avatar:'🦋',personality:'Playful and confident',story:'',greeting:'"Well, look who finally showed up!" Kai grins.'}
+];
+let characters=JSON.parse(localStorage.getItem('mt_chars')||'null')||defaults;
+let active=null;
+let chats=JSON.parse(localStorage.getItem('mt_chats')||'{}');
+
+function persist(){
+localStorage.setItem('mt_chars',JSON.stringify(characters));
+localStorage.setItem('mt_chats',JSON.stringify(chats));
+}
+function show(id){
+['home','creator','chat'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));
+if(id==='home')render();
+}
+function render(){
+let q=(document.getElementById('search').value||'').toLowerCase();
+let el=document.getElementById('cards');
+el.innerHTML='';
+characters.filter(c=>(c.name+' '+c.personality).toLowerCase().includes(q)).forEach(c=>{
+let card=document.createElement('div');
+card.className='card';
+card.innerHTML='<div class="pic"></div><div class="cardinfo"><b></b><p></p></div>';
+card.querySelector('.pic').textContent=c.avatar||'✨';
+card.querySelector('b').textContent=c.name;
+card.querySelector('p').textContent=c.personality||'Character';
+card.onclick=()=>openChat(c.id);
+el.appendChild(card);
+});
+}
+function openChat(id){
+active=characters.find(c=>c.id===id);
+if(!active)return;
+document.getElementById('chatname').textContent=active.name;
+document.getElementById('chatavatar').textContent=active.avatar||'✨';
+let arr=chats[id]||[];
+if(!arr.length)arr=[{who:'bot',text:active.greeting||'Hello! Let’s begin our story.'}];
+chats[id]=arr;
+drawMessages();
+show('chat');
+}
+function drawMessages(){
+let el=document.getElementById('messages');el.innerHTML='';
+(chats[active.id]||[]).forEach(m=>{
+let d=document.createElement('div');d.className='msg '+m.who;d.textContent=m.text;el.appendChild(d);
+});
+el.scrollTop=el.scrollHeight;
+}
+function send(){
+let input=document.getElementById('message'),text=input.value.trim();
+if(!text||!active)return;
+chats[active.id]=chats[active.id]||[];
+chats[active.id].push({who:'me',text});
+input.value='';persist();drawMessages();
+}
+function saveCharacter(){
+let name=document.getElementById('cname').value.trim();
+if(!name){alert('Enter a character name.');return}
+let c={
+id:'c'+Date.now(),name,
+avatar:document.getElementById('cavatar').value.trim()||'✨',
+personality:document.getElementById('cpersonality').value.trim(),
+story:document.getElementById('cstory').value.trim(),
+greeting:document.getElementById('cgreeting').value.trim()||'Hello! Let’s start our story.'
+};
+characters.push(c);persist();
+['cname','cavatar','cpersonality','cstory','cgreeting'].forEach(id=>document.getElementById(id).value='');
+show('home');
+}
+render();
+</script>
+</body>
+</html>
